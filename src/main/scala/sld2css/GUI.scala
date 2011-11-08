@@ -59,8 +59,8 @@ object GUI extends SwingApplication {
 
     val tabs = new TabbedPane {
       pages += (
-        new TabbedPane.Page("SLD", sldEditor),
-        new TabbedPane.Page("CSS", cssEditor)
+        new TabbedPane.Page("SLD", new ScrollPane(sldEditor)),
+        new TabbedPane.Page("CSS", new ScrollPane(cssEditor))
       )
     }
 
