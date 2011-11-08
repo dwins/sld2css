@@ -30,6 +30,17 @@ package object sld2css {
       ).flatten
     }
 
+    val strokeProperties = guard { (s: Stroke) => 
+      Seq(
+        Option(s.getOpacity()) map property("stroke-opacity"),
+        Option(s.getColor()) map property("stroke"),
+        Option(s.getDashArray()) map (d => "stroke-dasharray: %s;" format d),
+        Option(s.getDashOffset()) map property("stroke-dashoffset"),
+        Option(s.getLineCap()) map property("stroke-linecap"),
+        Option(s.getWidth()) map property("stroke-width")
+      ).flatten
+    }
+
     val fontProperties = guard { (f: Font) =>
       Seq(
         Option(f.getFamily.head) map property("font-family"),
@@ -52,20 +63,20 @@ package object sld2css {
       )).flatten
     }
 
+    val graphicPseudoProperties: Graphic => Seq[(String, Seq[String])] = guard { g =>
+      (g.graphicalSymbols.flatMap {
+        case mark: Mark =>
+          Some((
+            "mark",
+            fillProperties(mark.getFill) ++ strokeProperties(mark.getStroke)
+          ))
+        case _ => Nil
+      })
+    }
+
     val labelProperties = guard { (sym: TextSymbolizer2) => 
       Seq(
         Option(sym.getLabel()) map property("label")
-      ).flatten
-    }
-
-    val strokeProperties = guard { (s: Stroke) => 
-      Seq(
-        Option(s.getOpacity()) map property("stroke-opacity"),
-        Option(s.getColor()) map property("stroke"),
-        Option(s.getDashArray()) map (d => "stroke-dasharray: %s;" format d),
-        Option(s.getDashOffset()) map property("stroke-dashoffset"),
-        Option(s.getLineCap()) map property("stroke-linecap"),
-        Option(s.getWidth()) map property("stroke-width")
       ).flatten
     }
 
@@ -85,6 +96,12 @@ package object sld2css {
         graphicProperties(text.getGraphic)
       case raster: RasterSymbolizer =>
         Nil
+    }
+
+    val symbolizerPseudoProperties: Symbolizer => Seq[(String, Seq[String])] = {
+      case point: PointSymbolizer =>
+        graphicPseudoProperties(point.getGraphic)
+      case _ => Nil
     }
 
     val blocks = 
@@ -108,9 +125,17 @@ package object sld2css {
         }
 
         val body = properties.sorted.mkString("{\n    ", "\n    ", "\n}")
-        "%s %s" format (selector, body) 
+        val mainRule = "%s %s" format (selector, body) 
+        val pseudoProperties = r.symbolizers flatMap symbolizerPseudoProperties
+        val additionalRules =
+          for {
+            (pseudoclass, properties) <- pseudoProperties
+            selector_ = selector + " :" + pseudoclass
+            body = properties.sorted.mkString("{\n    ", "\n    ", "\n}")
+          } yield "%s %s" format (selector_, body)
+        mainRule +: additionalRules
       }
 
-    blocks mkString "\n\n"
+    blocks.flatten mkString "\n\n"
   }
 }
