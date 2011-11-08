@@ -40,22 +40,23 @@ package object sld2css {
     }
 
     val graphicProperties: Graphic => Seq[String] = guard { g =>
-      g.graphicalSymbols.flatMap {
+      (g.graphicalSymbols.map {
         case mark: Mark =>
-          Seq(
-            Option(mark.getWellKnownName()) map property("mark")
-          ).flatten
+          Option(mark.getWellKnownName()) map property("mark")
         case external: ExternalGraphic =>
-          Seq(
-            Option(external.getOnlineResource()) map ("mark: %s;" format _)
-          ).flatten
-      }
+          Option(external.getOnlineResource()) map ("mark: %s;" format _)
+      } ++ Seq(
+        Option(g.getOpacity) map property("mark-opacity"),
+        Option(g.getSize) map property("mark-size"),
+        Option(g.getRotation) map property("mark-rotation")
+      )).flatten
     }
 
-    val labelProperties = (sym: TextSymbolizer2) => 
+    val labelProperties = guard { (sym: TextSymbolizer2) => 
       Seq(
         Option(sym.getLabel()) map property("label")
       ).flatten
+    }
 
     val strokeProperties = guard { (s: Stroke) => 
       Seq(
